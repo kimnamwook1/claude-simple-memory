@@ -1,0 +1,11 @@
+{
+  "name": "claude-simple-memory",
+  "version": "3.0.0",
+  "description": "Simple session memory for Claude Code - TF-IDF relevance filtering",
+  "author": {
+    "name": "kimnamwook1"
+  },
+  "repository": "https://github.com/kimnamwook1/claude-simple-memory",
+  "license": "MIT",
+  "keywords": ["memory", "context", "persistence", "session"]
+}
