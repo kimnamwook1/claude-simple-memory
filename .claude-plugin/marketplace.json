@@ -11,7 +11,7 @@
     {
       "name": "claude-simple-memory",
       "version": "3.0.0",
-      "source": "./",
+      "source": "./plugin",
       "description": "Simple session memory for Claude Code - TF-IDF relevance filtering"
     }
   ]
