@@ -1,0 +1,18 @@
+{
+  "name": "kimnamwook1",
+  "owner": {
+    "name": "kimnamwook1"
+  },
+  "metadata": {
+    "description": "Plugins by kimnamwook1",
+    "homepage": "https://github.com/kimnamwook1/claude-simple-memory"
+  },
+  "plugins": [
+    {
+      "name": "claude-simple-memory",
+      "version": "3.0.0",
+      "source": ".",
+      "description": "Simple session memory for Claude Code - TF-IDF relevance filtering"
+    }
+  ]
+}
