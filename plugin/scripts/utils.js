@@ -154,6 +154,15 @@ function extractSessionKeywords(session) {
     keywords.push(...extractKeywords(session.summary));
   }
 
+  // ★ 대화 내용에서 키워드 추출 (핵심!)
+  if (session.conversations && session.conversations.length > 0) {
+    session.conversations.forEach(conv => {
+      if (conv.message) {
+        keywords.push(...extractKeywords(conv.message));
+      }
+    });
+  }
+
   // 관찰들에서 추출
   if (session.observations) {
     session.observations.forEach(obs => {
@@ -163,6 +172,10 @@ function extractSessionKeywords(session) {
       }
       if (obs.details?.command) {
         keywords.push(...extractKeywords(obs.details.command));
+      }
+      // 관찰 내 lastUserMessage도 추출
+      if (obs.context?.lastUserMessage) {
+        keywords.push(...extractKeywords(obs.context.lastUserMessage));
       }
     });
   }
@@ -200,15 +213,31 @@ function calculateRelevanceScores(currentContext, sessions) {
     const sessionTFIDF = calculateTFIDF(sessionKeywordsList[index], df, totalDocs);
     const similarity = cosineSimilarity(contextTFIDF, sessionTFIDF);
 
-    // 시간 가중치 (최근일수록 높은 점수)
+    // 시간 가중치 (최근일수록 높은 점수) - 더 급격한 감쇠
     const daysSinceSession = (Date.now() - new Date(session.date).getTime()) / (1000 * 60 * 60 * 24);
-    const timeWeight = Math.exp(-daysSinceSession / 30); // 30일 반감기
+    const hoursSinceSession = (Date.now() - new Date(session.date).getTime()) / (1000 * 60 * 60);
+
+    // ★ 24시간 이내 세션은 시간 가중치 크게 부여
+    let timeWeight;
+    if (hoursSinceSession < 24) {
+      timeWeight = 1.0 - (hoursSinceSession / 48); // 24시간 이내: 1.0 → 0.5
+    } else {
+      timeWeight = Math.exp(-daysSinceSession / 14); // 14일 반감기 (더 급격)
+    }
+
+    // ★ 대화(conversations)가 있는 세션에 보너스
+    const hasConversations = session.conversations && session.conversations.length > 0;
+    const conversationBonus = hasConversations ? 0.15 : 0;
+
+    // 최종 점수: 유사도 40% + 시간 45% + 대화보너스 15%
+    const finalScore = similarity * 0.4 + timeWeight * 0.45 + conversationBonus;
 
     return {
       session,
       similarity,
       timeWeight,
-      score: similarity * 0.7 + timeWeight * 0.3 // 유사도 70%, 시간 30%
+      conversationBonus,
+      score: Math.min(finalScore, 1.0) // 최대 1.0
     };
   });
 
