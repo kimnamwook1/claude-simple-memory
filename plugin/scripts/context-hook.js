@@ -103,13 +103,22 @@ function formatContext(rankedSessions, currentProject) {
     context += `**관련도:** ${relevanceBar} (${(score * 100).toFixed(0)}%)\n`;
     context += `**요약:** ${session.summary}\n`;
 
+    // 대화 내용 표시 (핵심!)
+    if (session.conversations && session.conversations.length > 0) {
+      const recentConvs = session.conversations.slice(-5);
+      context += `**💬 대화 내용:**\n`;
+      recentConvs.forEach(conv => {
+        const typeEmoji = conv.type === 'question' ? '❓' : conv.type === 'request' ? '📝' : '💬';
+        context += `- ${typeEmoji} "${conv.message}"\n`;
+      });
+    }
+
     // 상세 관찰 (있으면)
     if (session.observations && session.observations.length > 0) {
       const recentObs = session.observations.slice(-MAX_OBSERVATIONS_PER_SESSION);
-      context += `**작업 내역:**\n`;
+      context += `**🔧 작업 내역:**\n`;
       recentObs.forEach(obs => {
         context += `- ${obs.summary}\n`;
-        // 대화 컨텍스트가 있으면 표시 (왜 이 작업을 했는지)
         if (obs.context?.lastUserMessage) {
           context += `  💬 _"${obs.context.lastUserMessage}"_\n`;
         }
