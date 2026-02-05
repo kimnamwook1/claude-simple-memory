@@ -159,9 +159,12 @@ async function main() {
     const allSessions = loadAllMemories();
 
     if (allSessions.length === 0) {
+      // Claude Code SessionStart hook 형식: hookSpecificOutput.additionalContext
       console.log(JSON.stringify({
-        success: true,
-        message: 'No previous sessions found'
+        hookSpecificOutput: {
+          hookEventName: 'SessionStart',
+          additionalContext: ''
+        }
       }));
       process.exit(0);
     }
@@ -187,9 +190,12 @@ async function main() {
     }
 
     if (relevantSessions.length === 0) {
+      // Claude Code SessionStart hook 형식: hookSpecificOutput.additionalContext
       console.log(JSON.stringify({
-        success: true,
-        message: 'No relevant sessions found'
+        hookSpecificOutput: {
+          hookEventName: 'SessionStart',
+          additionalContext: ''
+        }
       }));
       process.exit(0);
     }
@@ -197,22 +203,14 @@ async function main() {
     // 컨텍스트 생성
     const context = formatContext(relevantSessions, currentProject);
 
-    if (context) {
-      console.log(JSON.stringify({
-        success: true,
-        user_message: context,
-        stats: {
-          total_sessions: allSessions.length,
-          relevant_sessions: relevantSessions.length,
-          top_score: relevantSessions[0]?.score || 0
-        }
-      }));
-    } else {
-      console.log(JSON.stringify({
-        success: true,
-        message: 'No context to inject'
-      }));
-    }
+    // Claude Code SessionStart hook 형식: hookSpecificOutput.additionalContext
+    // 이 형식이 Claude에게 컨텍스트로 주입됨!
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'SessionStart',
+        additionalContext: context || ''
+      }
+    }));
 
     process.exit(0);
 
