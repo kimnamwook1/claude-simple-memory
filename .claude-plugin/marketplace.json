@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "claude-simple-memory",
-      "version": "4.0.2",
+      "version": "4.0.3",
       "source": "./plugin",
       "description": "Session memory for Claude Code - captures conversations AND tool usage"
     }
