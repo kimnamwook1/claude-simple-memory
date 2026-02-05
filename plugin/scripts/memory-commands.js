@@ -110,6 +110,11 @@ function commandSearch(keyword) {
       o.context?.lastUserMessage?.toLowerCase().includes(lowerKeyword)
     )) return true;
 
+    // 대화 내용에서 검색 (핵심!)
+    if (session.conversations?.some(c =>
+      c.message?.toLowerCase().includes(lowerKeyword)
+    )) return true;
+
     return false;
   });
 
@@ -137,6 +142,19 @@ function commandSearch(keyword) {
         if (o.context?.lastUserMessage) {
           console.log(`  💬 _"${o.context.lastUserMessage}"_`);
         }
+      });
+    }
+
+    // 매칭된 대화 표시
+    const matchingConv = session.conversations?.filter(c =>
+      c.message?.toLowerCase().includes(lowerKeyword)
+    ).slice(0, 5);
+
+    if (matchingConv?.length > 0) {
+      console.log('**매칭된 대화:**');
+      matchingConv.forEach(c => {
+        const typeEmoji = c.type === 'question' ? '❓' : c.type === 'request' ? '📝' : '💬';
+        console.log(`- ${typeEmoji} "${c.message}"`);
       });
     }
     console.log('');
@@ -176,10 +194,11 @@ function commandTimeline(count = 10) {
     }
 
     const obsCount = session.observation_count || session.observations?.length || 0;
+    const convCount = session.conversation_count || session.conversations?.length || 0;
     const summaryType = session.summary_type === 'ai' ? '🤖' : '📝';
 
     console.log(`- **${timeLabel}** [${session.project}] ${summaryType} ${session.summary.substring(0, 60)}${session.summary.length > 60 ? '...' : ''}`);
-    console.log(`  _${obsCount}개 작업_`);
+    console.log(`  _${convCount > 0 ? `💬 ${convCount}개 대화, ` : ''}${obsCount}개 작업_`);
   });
 
   console.log(`\n---\n_전체 ${sessions.length}개 세션 저장됨_\n`);
@@ -191,32 +210,53 @@ function commandTimeline(count = 10) {
 
 function commandShow() {
   const buffer = loadBuffer();
+  const hasObservations = buffer.observations && buffer.observations.length > 0;
+  const hasConversations = buffer.conversations && buffer.conversations.length > 0;
 
-  if (!buffer.observations || buffer.observations.length === 0) {
-    console.log('\n📋 현재 세션에 저장된 관찰이 없습니다.\n');
+  if (!hasObservations && !hasConversations) {
+    console.log('\n📋 현재 세션에 저장된 내용이 없습니다.\n');
     return;
   }
 
   console.log(`\n# 📋 현재 세션 버퍼\n`);
   console.log(`> 세션 시작: ${buffer.session_start || '알 수 없음'}`);
-  console.log(`> 관찰 수: ${buffer.observations.length}개\n`);
+  console.log(`> 대화 수: ${buffer.conversations?.length || 0}개`);
+  console.log(`> 관찰 수: ${buffer.observations?.length || 0}개\n`);
 
-  buffer.observations.forEach((obs, index) => {
-    const time = new Date(obs.timestamp).toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
+  // 대화 내용 먼저 표시
+  if (hasConversations) {
+    console.log('## 💬 대화 기록\n');
+    buffer.conversations.forEach((conv, index) => {
+      const time = new Date(conv.timestamp).toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const typeEmoji = conv.type === 'question' ? '❓' : conv.type === 'request' ? '📝' : '💬';
+      console.log(`${index + 1}. [${time}] ${typeEmoji} "${conv.message}"`);
     });
-
-    console.log(`### ${index + 1}. [${time}] ${obs.tool}`);
-    console.log(`${obs.summary}`);
-
-    if (obs.context?.lastUserMessage) {
-      console.log(`💬 _"${obs.context.lastUserMessage}"_`);
-    }
-
     console.log('');
-  });
+  }
+
+  // 관찰 내용 표시
+  if (hasObservations) {
+    console.log('## 🔧 작업 기록\n');
+    buffer.observations.forEach((obs, index) => {
+      const time = new Date(obs.timestamp).toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+
+      console.log(`### ${index + 1}. [${time}] ${obs.tool}`);
+      console.log(`${obs.summary}`);
+
+      if (obs.context?.lastUserMessage) {
+        console.log(`💬 _"${obs.context.lastUserMessage}"_`);
+      }
+
+      console.log('');
+    });
+  }
 
   console.log('---\n_세션 종료 시 자동으로 memories에 저장됩니다_\n');
 }
@@ -244,9 +284,11 @@ function commandStats() {
   console.log(`|------|-----|`);
   console.log(`| 전체 세션 | ${sessions.length}개 |`);
   console.log(`| 프로젝트 수 | ${Object.keys(projectStats).length}개 |`);
-  console.log(`| 현재 버퍼 | ${buffer.observations?.length || 0}개 관찰 |`);
+  console.log(`| 현재 버퍼 | 💬 ${buffer.conversations?.length || 0}개 대화, 🔧 ${buffer.observations?.length || 0}개 관찰 |`);
 
   const totalObs = sessions.reduce((sum, s) => sum + (s.observation_count || s.observations?.length || 0), 0);
+  const totalConv = sessions.reduce((sum, s) => sum + (s.conversation_count || s.conversations?.length || 0), 0);
+  console.log(`| 전체 대화 | ${totalConv}개 |`);
   console.log(`| 전체 관찰 | ${totalObs}개 |`);
 
   if (Object.keys(projectStats).length > 0) {

@@ -10,9 +10,9 @@
   "plugins": [
     {
       "name": "claude-simple-memory",
-      "version": "3.0.0",
+      "version": "4.0.0",
       "source": "./plugin",
-      "description": "Simple session memory for Claude Code - TF-IDF relevance filtering"
+      "description": "Session memory for Claude Code - captures conversations AND tool usage"
     }
   ]
 }

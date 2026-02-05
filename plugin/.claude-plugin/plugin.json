@@ -1,7 +1,7 @@
 {
   "name": "claude-simple-memory",
-  "version": "3.0.0",
-  "description": "Simple session memory for Claude Code - TF-IDF relevance filtering",
+  "version": "4.0.0",
+  "description": "Session memory for Claude Code - captures conversations AND tool usage",
   "author": {
     "name": "kimnamwook1"
   },

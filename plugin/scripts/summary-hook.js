@@ -68,16 +68,20 @@ function saveMemories(project, memories) {
 // AI 요약 (Phase 2)
 // ═══════════════════════════════════════════════════════════════
 
-async function generateAISummary(observations, project) {
+async function generateAISummary(observations, conversations, project) {
   if (!ANTHROPIC_API_KEY) {
     return null; // API 키 없으면 null 반환 → 로컬 요약 사용
   }
 
   try {
-    const observationText = observations
+    // 대화 내용 포함
+    const conversationText = (conversations || [])
+      .map(c => `- [${c.type}] "${c.message}"`)
+      .join('\n');
+
+    const observationText = (observations || [])
       .map(o => {
         let line = `- [${o.tool}] ${o.summary}`;
-        // 대화 컨텍스트가 있으면 추가 (사용자 요청 포함)
         if (o.context?.lastUserMessage) {
           line += `\n  사용자 요청: "${o.context.lastUserMessage}"`;
         }
@@ -101,15 +105,18 @@ async function generateAISummary(observations, project) {
 
 프로젝트: ${project}
 
+이번 세션의 대화 내용:
+${conversationText || '(대화 없음)'}
+
 이번 세션에서 수행한 작업들:
-${observationText}
+${observationText || '(작업 없음)'}
 
-위 작업들을 분석하여 다음 형식으로 요약해주세요:
-1. 핵심 작업 (1-2문장): 이번 세션에서 주로 무엇을 했는지
-2. 변경된 주요 영역: 어떤 기능/모듈을 다뤘는지
-3. 특이사항: 에러, 중요 결정, 완료된 기능 등
+위 대화와 작업을 분석하여 다음 형식으로 요약해주세요:
+1. 핵심 주제 (1-2문장): 이번 세션에서 주로 무엇을 논의/작업했는지
+2. 주요 질문과 답변: 사용자가 물어본 중요한 질문들
+3. 변경/완료된 사항: 작업한 내용이 있다면
 
-간결하고 명확하게 한국어로 답변하세요. 200자 이내로 요약하세요.`
+간결하고 명확하게 한국어로 답변하세요. 250자 이내로 요약하세요.`
         }]
       })
     });
@@ -131,13 +138,21 @@ ${observationText}
 // 로컬 요약 (Fallback)
 // ═══════════════════════════════════════════════════════════════
 
-function generateLocalSummary(observations) {
+function generateLocalSummary(observations, conversations) {
   const toolCounts = {};
   const files = new Set();
   const commands = [];
+  const questions = [];
   let hasError = false;
 
-  observations.forEach(o => {
+  // 대화에서 질문 추출
+  (conversations || []).forEach(c => {
+    if (c.type === 'question') {
+      questions.push(c.message.substring(0, 50));
+    }
+  });
+
+  (observations || []).forEach(o => {
     // 도구별 카운트
     toolCounts[o.tool] = (toolCounts[o.tool] || 0) + 1;
 
@@ -182,6 +197,14 @@ function generateLocalSummary(observations) {
     summary += ' | ⚠️ 일부 에러 발생';
   }
 
+  // 질문이 있으면 추가
+  if (questions.length > 0) {
+    summary += ` | 💬 질문: "${questions[0]}"`;
+    if (questions.length > 1) {
+      summary += ` 외 ${questions.length - 1}개`;
+    }
+  }
+
   return summary;
 }
 
@@ -189,10 +212,15 @@ function generateLocalSummary(observations) {
 // 키워드 추출 (검색용)
 // ═══════════════════════════════════════════════════════════════
 
-function extractSessionKeywords(observations) {
+function extractSessionKeywords(observations, conversations) {
   const keywords = new Set();
 
-  observations.forEach(o => {
+  // 대화에서 키워드 추출
+  (conversations || []).forEach(c => {
+    extractKeywords(c.message).forEach(k => keywords.add(k));
+  });
+
+  (observations || []).forEach(o => {
     // 요약에서 키워드
     extractKeywords(o.summary).forEach(k => keywords.add(k));
 
@@ -223,9 +251,12 @@ async function main() {
     const project = path.basename(hookData.cwd || process.cwd());
     const buffer = loadBuffer();
 
-    // 관찰이 없으면 종료
-    if (!buffer.observations || buffer.observations.length === 0) {
-      console.log(JSON.stringify({ success: true, message: 'No observations to summarize' }));
+    // 관찰도 대화도 없으면 종료
+    const hasObservations = buffer.observations && buffer.observations.length > 0;
+    const hasConversations = buffer.conversations && buffer.conversations.length > 0;
+
+    if (!hasObservations && !hasConversations) {
+      console.log(JSON.stringify({ success: true, message: 'No observations or conversations to summarize' }));
       process.exit(0);
     }
 
@@ -233,17 +264,17 @@ async function main() {
     let summary;
     let summaryType;
 
-    const aiSummary = await generateAISummary(buffer.observations, project);
+    const aiSummary = await generateAISummary(buffer.observations, buffer.conversations, project);
     if (aiSummary) {
       summary = aiSummary;
       summaryType = 'ai';
     } else {
-      summary = generateLocalSummary(buffer.observations);
+      summary = generateLocalSummary(buffer.observations, buffer.conversations);
       summaryType = 'local';
     }
 
-    // 키워드 추출 (검색용)
-    const keywords = extractSessionKeywords(buffer.observations);
+    // 키워드 추출 (검색용) - 대화 내용 포함
+    const keywords = extractSessionKeywords(buffer.observations, buffer.conversations);
 
     // 메모리에 세션 저장
     const memories = loadMemories(project);
@@ -251,9 +282,11 @@ async function main() {
       date: new Date().toISOString(),
       summary: summary,
       summary_type: summaryType,
-      observation_count: buffer.observations.length,
+      observation_count: buffer.observations?.length || 0,
+      conversation_count: buffer.conversations?.length || 0,
       keywords: keywords,
-      observations: buffer.observations.slice(-20) // 최근 20개만 상세 저장
+      observations: (buffer.observations || []).slice(-20), // 최근 20개만 상세 저장
+      conversations: (buffer.conversations || []).slice(-30) // 대화 최근 30개 저장
     });
 
     // 최대 50개 세션만 유지
