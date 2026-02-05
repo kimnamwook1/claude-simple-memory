@@ -113,7 +113,7 @@ function loadBuffer() {
   } catch (e) {
     // 손상된 파일이면 새로 시작
   }
-  return { observations: [], session_start: new Date().toISOString() };
+  return { observations: [], conversations: [], session_start: new Date().toISOString() };
 }
 
 // 버퍼 파일 저장

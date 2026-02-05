@@ -28,7 +28,7 @@ function loadBuffer() {
       return JSON.parse(fs.readFileSync(BUFFER_FILE, 'utf-8'));
     }
   } catch (e) {}
-  return { observations: [], session_start: null };
+  return { observations: [], conversations: [], session_start: null };
 }
 
 function loadAllMemories() {

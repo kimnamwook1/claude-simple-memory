@@ -37,12 +37,16 @@ function loadBuffer() {
       return JSON.parse(fs.readFileSync(BUFFER_FILE, 'utf-8'));
     }
   } catch (e) {}
-  return { observations: [], session_start: null };
+  return { observations: [], conversations: [], session_start: null };
 }
 
 // 버퍼 파일 초기화
 function clearBuffer() {
-  const emptyBuffer = { observations: [], session_start: new Date().toISOString() };
+  const emptyBuffer = {
+    observations: [],
+    conversations: [],
+    session_start: new Date().toISOString()
+  };
   fs.writeFileSync(BUFFER_FILE, JSON.stringify(emptyBuffer, null, 2), 'utf-8');
 }
 
